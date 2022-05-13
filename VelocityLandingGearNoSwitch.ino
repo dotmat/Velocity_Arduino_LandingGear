@@ -19,11 +19,6 @@
 
 // Both rear wheels are tied to the same micro switches as its not possible for them to move interdependently. 
 
-// **********
-// WARNING! ALL CODE HERE IS EXPERIMENTAL AND NOT TO BE USED IN AN AIRCRAFT DESIGN.
-// PLEASE BE SENSIBLE WITH YOUR FLYING AND YOUR CODING. 
-// *********
-
 const int noseUpSwitch = A5;
 const int noseDownSwitch = A4;
 const int rearUpSwitch = A3;
@@ -31,6 +26,9 @@ const int rearDownSwitch = A2;
 
 String noseGearPosition = "unknown";
 String rearGearPosition = "unknown";
+
+String previousNoseGearPosition = "unknown";
+String previousRearGearPosition = "unknown";
 
 int firstBoot = 1;
 int pixelBrightnessLevel = 255;
@@ -70,14 +68,17 @@ void loop() {
     Serial.println("Getting position of nose wheel");
     if(digitalRead(noseUpSwitch) == HIGH){
       noseGearPosition = "up";
+      previousNoseGearPosition = "up";
       setFrontGearLED(strip.Color(0, 0, 255)); // Blue is up followed by off
       Serial.println("The nose wheel is up");
     } else if(digitalRead(noseDownSwitch) == HIGH){
       noseGearPosition = "down";
+      previousNoseGearPosition = "down";
       setFrontGearLED(strip.Color(0, 255, 0));
       Serial.println("The nose wheel is down");
     } else {
       noseGearPosition = "error";
+      previousNoseGearPosition = "error";
       Serial.println("Error getting status of nose wheel");
     }
 
@@ -85,21 +86,94 @@ void loop() {
     // Get the position of the reargear
     if(digitalRead(rearUpSwitch) == HIGH){
       rearGearPosition = "up";
+      previousRearGearPosition = "up";
       setRearGearLED(strip.Color(0, 0, 255));
       Serial.println("Rear gear is up");
     } else if(digitalRead(rearDownSwitch) == HIGH){
       rearGearPosition = "down";
+      previousRearGearPosition = "down";
       setRearGearLED(strip.Color(0, 255, 0));
       Serial.println("Rear gear is down");
     } else {
       rearGearPosition = "error";
+      previousRearGearPosition = "error";
       Serial.println("Error getting details of rear gear.");
+    }
+
+    // If the landing gear is up (both nose and rear)
+    // delay 2 seconds so the pilot can see and then clear the blue 
+    // and then clear the LEDs so that we can maintain good lights out behavior. 
+
+    if(noseGearPosition == "up" && rearGearPosition == "up"){
+      delay(2000);
+      strip.clear();
     }
 
     Serial.println("Finished FirstBoot Sequence.");
     firstBoot = 0;
   } else {
-    // Check the current state of the noseGear
+    // Check the current state of the noseGear vs its known previous state.
+    if(digitalRead(noseUpSwitch) == HIGH){
+      noseGearPosition = "up";
+    }
+
+    if(digitalRead(noseDownSwitch) == HIGH){
+      noseGearPosition = "down";
+    }
+
+    if(digitalRead(rearUpSwitch) == HIGH){
+      rearGearPosition = "up";
+    }
+
+   if(digitalRead(rearDownSwitch) == HIGH){
+      noseGearPosition = "down";
+    }
+
+
+
+    // If the noseGearPosition is up 
+    // and the previousNoseGearPosition is up 
+    // and the rearGearPosition is up
+    // and the previousRearGearPosition is up
+    // Then nothing has changed.
+    if(noseGearPosition == "up" && previousNoseGearPosition == "up" && rearGearPosition == "up" && previousRearGearPosition == "up"){
+      Serial.println("The gear switch is up on this cycle. Nothing to see here.");
+      strip.clear();
+      strip.show();
+      delay(40);
+    } 
+    // If the current position is down and the old position is up then the pilot has asked for the gear to come down
+    else if(noseGearPosition == "down" && previousNoseGearPosition == "up" && rearGearPosition == "down" && previousRearGearPosition == "up"){
+      Serial.println("The pilot has asked for the landing gear to come down, flash the green LED");
+      setFrontGearLED(strip.Color(0, 255, 0));
+      setRearGearLED(strip.Color(0, 255, 0));
+      delay(40);
+      strip.clear();
+      setFrontGearLED(strip.Color(0, 255, 0));
+      setRearGearLED(strip.Color(0, 255, 0));
+      delay(40);
+      strip.clear();
+    }
+    // If the current position is up and the old position is down then the pilot has asked for the gear to come up
+    else if(noseGearPosition == "up" && previousNoseGearPosition == "down" && rearGearPosition == "up" && previousRearGearPosition == "down"){
+      Serial.println("The pilot has asked for the landing gear to come up, flash the blue LED");
+      setFrontGearLED(strip.Color(0, 0, 255));
+      setRearGearLED(strip.Color(0, 0, 255));
+      delay(40);
+      strip.clear();
+      setFrontGearLED(strip.Color(0, 0, 255));
+      setRearGearLED(strip.Color(0, 0, 255));
+      delay(40);
+      strip.clear();
+    } 
+    // If the current position is down and the old position is down, the landing gear is locked down. In this case permenantly keep the GREEN LED's lit.
+    else if(noseGearPosition == "down" && previousNoseGearPosition == "down" && rearGearPosition == "down" && previousRearGearPosition == "down"){
+      Serial.println("The the landing gear is down and locked.");
+      strip.clear();
+      setFrontGearLED(strip.Color(0, 255, 0));
+      setRearGearLED(strip.Color(0, 255, 0));
+    }
+
   }
 }
 
